@@ -38,12 +38,12 @@
       <itemPath>lib/app_button.c</itemPath>
       <itemPath>lib/decoder.c</itemPath>
       <itemPath>lib/hal_button.c</itemPath>
-      <itemPath>lib/hal_gpio.c.c</itemPath>
       <itemPath>lib/hal_i2c.c</itemPath>
       <itemPath>lib/hal_pwm.c</itemPath>
       <itemPath>lib/hal_spi.c</itemPath>
       <itemPath>lib/hal_timer.c</itemPath>
       <itemPath>lib/hal_uart.c</itemPath>
+      <itemPath>lib/hal_gpio.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <sourceRootList>
