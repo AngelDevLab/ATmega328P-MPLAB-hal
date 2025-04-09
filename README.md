@@ -30,3 +30,6 @@ avrdude -v -C avrdude.conf -c arduino -p atmega328p -P %COMPORT% -b 115200 -U fl
 pause
 ```
 ## Output
+
+https://github.com/user-attachments/assets/80eb0d03-c4f9-46f9-b65a-c92284250dff
+
