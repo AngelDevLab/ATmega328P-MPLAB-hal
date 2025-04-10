@@ -17,8 +17,3 @@ void decoder_input(const char* input)
         decoder_callback(cmd, arg1, arg2);
     }
 }
-
-__attribute__((weak)) void decoder_callback(const char* cmd, const char* arg1, const char* arg2)
-{
-    
-}

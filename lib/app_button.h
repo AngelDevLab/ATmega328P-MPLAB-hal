@@ -7,8 +7,8 @@
 
 #define APP_BUTTON_POWER_ON_RESET_NUMBER BUTTON_NUM0
 #define APP_BUTTON_CLICK_MIN_TIME 20                      // if button click time is low this value ,not trigger
-#define APP_BUTTON_LONG_PRESS_TIME 500                    // if button press time over this value,arrive long press event
-#define APP_BUTTON_PRESSING_CALLBACK_TRIGGER_INTERVAL 100 // pressing callback trigger interval
+#define APP_BUTTON_LONG_PRESS_TIME 100//500                    // if button press time over this value,arrive long press event
+#define APP_BUTTON_PRESSING_CALLBACK_TRIGGER_INTERVAL 20//100 // pressing callback trigger interval
 #define APP_BUTTON_SHORT_CLICK_INTERVAL 300               // between click interval
 #define APP_BUTTON_POWER_ON_RESET_TIMEOUT 3000            // over this time,call app_button_power_on_unreset_event_callback callback
 #define APP_BUTTON_CLICK_3_EVENT_TIMEROUT 500             // this time need to over pressing trigger interval

@@ -2,8 +2,12 @@
 #include "MPU6050.h"
 #include "ILI9341.h"
 #include <avr/pgmspace.h>
+#include "decoder.h"
+#include "app_button.h"
 
-const uint8_t myball3d_image[1568] PROGMEM = {
+static game_status_t game_status = GAME_IDLE;
+
+const uint8_t my_ball_image[1568] PROGMEM = {
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF7, 0x9F, 0xDE, 0x7E, 0xCD, 0xBD,
     0xB4, 0xFC, 0xAC, 0x7C, 0xAC, 0x3B, 0xAC, 0x5B, 0xBD, 0x1C, 0xD6, 0x5D,
@@ -137,156 +141,247 @@ const uint8_t myball3d_image[1568] PROGMEM = {
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
 
-int16_t accel_x = 0;
-int16_t accel_y = 0;
-
-void app_update_mpu6050_data(int16_t *data)
+static void app_draw_board(game_object_t *self)
 {
-    accel_x = data[MPU6050_ACCEL_X];
-    accel_y = data[MPU6050_ACCEL_Y];
+    ILI9341_DrawFilledRect(self->x, self->y, self->width, self->height, BLACK);
+}
+
+static void app_draw_ball(game_object_t *self)
+{
+    ILI9341_DrawImage_At_Scaled_Fast(my_ball_image, self->width, self->height, self->x, self->y, 1);
+}
+
+game_object_t game_board = {
+    .width = 60,
+    .height = 10,
+    .x = 10,
+    .y = 200,
+    .dx = 0,
+    .dy = 0,
+    .draw = app_draw_board,
+};
+
+game_object_t game_ball = {
+    .width = 28,
+    .height = 28,
+    .x = 24,
+    .y = 172,
+    .dx = 0,
+    .dy = 0,
+    .draw = app_draw_ball,
+};
+
+void app_update_rect_move_diff(game_object_t *obj, uint16_t bg_color)
+{
+    obj->draw(obj);
+    
+    // 左側清除（向右移動）
+    if (obj->dx > 0) {
+        ILI9341_DrawFilledRect(obj->x - obj->dx, obj->y, obj->dx, obj->height, bg_color);
+    }
+    // 右側清除（向左移動）
+    else if (obj->dx < 0) {
+        ILI9341_DrawFilledRect(obj->x + obj->width, obj->y, -obj->dx, obj->height, bg_color);
+    }
+
+    // 上方清除（向下移動）
+    if (obj->dy > 0) {
+        ILI9341_DrawFilledRect(obj->x, obj->y - obj->dy, obj->width, obj->dy, bg_color);
+    }
+    // 下方清除（向上移動）
+    else if (obj->dy < 0) {
+        ILI9341_DrawFilledRect(obj->x, obj->y + obj->height, obj->width, -obj->dy, bg_color);
+    }
+    
+    obj->x += obj->dx;
+    obj->y += obj->dy;
+}
+
+void app_check_collision_and_stop(game_object_t *obj)
+{
+    // 右邊碰撞
+    if (obj->x + obj->width >= ILI9341_WIDTH && obj->dx > 0) {
+        obj->x = ILI9341_WIDTH - obj->width;
+        obj->dx = 0;
+    }
+    // 左邊碰撞
+    if (obj->x <= 0 && obj->dx < 0) {
+        obj->x = 0;
+        obj->dx = 0;
+    }
+    // 下面碰撞
+    if (obj->y + obj->height >= ILI9341_HEIGHT && obj->dy > 0) {
+        obj->y = ILI9341_HEIGHT - obj->height;
+        obj->dy = 0;
+    }
+    // 上面碰撞
+    if (obj->y <= 0 && obj->dy < 0) {
+        obj->y = 0;
+        obj->dy = 0;
+    }
+    
+    obj->draw(obj);
+}
+
+void app_check_collision_and_reflex(game_object_t *obj)
+{
+    //右牆判斷
+    if (obj->dx > 0) {
+        if (obj->x + obj->width + obj->dx >= ILI9341_WIDTH) {
+            obj->dx = -obj->dx;
+            obj->x = ILI9341_WIDTH -obj->width;
+        }
+    }
+    //左牆判斷
+    if (obj->dx < 0) {
+        if (obj->x  + obj->dx <= 0) {
+            obj->dx = -obj->dx;
+            obj->x = 0;
+        }
+    }
+    //下牆判斷
+    if (obj->dy > 0) {
+        if (obj->y + obj->height + obj->dy >= ILI9341_HEIGHT) {
+            obj->dy = -obj->dy;
+            obj->y = ILI9341_HEIGHT -obj->height;
+        }
+    }
+    //上牆判斷
+    if (obj->dy < 0) {
+        if (obj->y  + obj->dy <= 0) {
+            obj->dy = -obj->dy;
+            obj->y = 0;
+        }
+    }
+}
+
+static void app_ili9341_update(void)
+{
+    static uint32_t last_tick = 0;
+    
+    if(HAL_GetTick() - last_tick >= 10){
+        last_tick = HAL_GetTick();
+        
+        app_check_collision_and_stop(&game_board);
+        app_update_rect_move_diff(&game_board, WHITE);
+        
+        app_check_collision_and_reflex(&game_ball);
+        app_update_rect_move_diff(&game_ball, WHITE);
+    }
+}
+
+static void app_game_process(void)
+{
+    int game_ball_center = 0;
+    
+    switch(game_status)
+    {
+        case GAME_IDLE:
+            break;
+        case GAME_START:
+            game_status = GAME_PLAYING;
+            game_ball.dx = 2;
+            game_ball.dy = -2;
+            break;
+        case GAME_PLAYING:
+            if (game_ball.y + game_ball.height + game_ball.dy >= game_board.y) {
+                game_ball_center = game_ball.x + game_ball.dx + (game_ball.width /2);
+                if ((game_ball_center <= game_board.x) || (game_ball_center >= game_board.x + game_board.width)) {
+                    game_status = GAME_FAIL;
+                }
+                else {
+                    game_ball.y = game_board.y - game_ball.height;
+                    game_ball.dy = -game_ball.dy;
+                    
+                    if (game_board.dx == 0) {
+                        game_ball.dy = -2;
+                    }
+                    else {
+                        game_ball.dy = -4;
+                    }
+                }
+            }
+            
+            break;
+        case GAME_FAIL:
+            game_ball.dx = 0;
+            game_ball.dy = 0;
+            game_board.dx = 0;
+            game_board.dy = 0;
+            ILI9341_FillScreen(LIGHTGREY);
+            HAL_Delay(1000);
+            ILI9341_FillScreen(WHITE);
+            game_ball.x = 24;
+            game_ball.y = 172;
+            game_board.x = 10;
+            game_board.y = 200;
+            game_status = GAME_IDLE;
+            break;
+        case GAME_STOP:
+            break;
+            
+    }
 }
 
 void app_init(void)
 {
-
+    app_button_init(&HAL_GetTick);
+    MPU6050_Init(&HAL_GetTick);
+    
+    ILI9341_Init();
+    ILI9341_SetRotation(SCREEN_HORIZONTAL_2);
+    ILI9341_FillScreen(WHITE);
+    
+    game_board.draw(&game_board);
+    game_ball.draw(&game_ball);
 }
 
-void ILI9341_DrawFilledRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
-{
-    ILI9341_SetAddress(x, y, x + w - 1, y + h - 1);
-
-    uint32_t total_pixels = w * h;
-    uint8_t buffer[400];
-    uint8_t hi = color >> 8;
-    uint8_t lo = color & 0xFF;
-
-    for (int i = 0; i < sizeof(buffer); i += 2) {
-        buffer[i] = hi;
-        buffer[i + 1] = lo;
-    }
-
-    DC_HIGH();
-    while (total_pixels > 0) {
-        uint16_t batch = (total_pixels > 200) ? 200 : total_pixels;
-        HAL_SPI_Transmit(buffer, batch * 2);
-        total_pixels -= batch;
-    }
-}
-
-void app_draw_ball_diff_update(int old_x, int old_y, int new_x, int new_y)
-{
-    int ball_size = 28;
-
-    // 畫新位置的小球
-    ILI9341_DrawImage_At_Scaled_Fast(myball3d_image, ball_size, ball_size, new_x, new_y, 1);
-
-    // 左側清除（向右移動）
-    if (new_x > old_x) {
-        int clear_width = new_x - old_x;
-        ILI9341_DrawFilledRect(old_x, old_y, clear_width, ball_size, WHITE);
-    }
-
-    // 右側清除（向左移動）
-    else if (new_x < old_x) {
-        int clear_width = old_x - new_x;
-        ILI9341_DrawFilledRect(new_x + ball_size, old_y, clear_width, ball_size, WHITE);
-    }
-
-    // 上方清除（向下移動）
-    if (new_y > old_y) {
-        int clear_height = new_y - old_y;
-        ILI9341_DrawFilledRect(new_x, old_y, ball_size, clear_height, WHITE);
-    }
-
-    // 下方清除（向上移動）
-    else if (new_y < old_y) {
-        int clear_height = old_y - new_y;
-        ILI9341_DrawFilledRect(new_x, new_y + ball_size, ball_size, clear_height, WHITE);
-    }
-}
-#include <stdlib.h> // for abs()
-typedef struct {
-    int x, y;
-    int vx, vy;
-} Ball;
-
-static Ball ball1 = {160, 120, 2, 2};
-static Ball ball2 = {100, 80, -2, 2};
-static Ball ball3 = {50, 50, 2, -2};
-
-#define MIN_SPEED 1
 void app_process(void)
 {
-    static uint32_t timer = 0;
-    static uint32_t debug_timer = 0;
-
-    uint32_t now = HAL_GetTick();
-    if (now - timer >= 5) {
-        timer = now;
-
-        // 更新兩球位置
-        #define BALL_COUNT 3
-        Ball* balls[BALL_COUNT] = { &ball1, &ball2, &ball3};
-        static int prev_x[BALL_COUNT] = {0}, prev_y[BALL_COUNT] = {0};
-
-        // 更新位置與邊界反彈
-        for (int i = 0; i < BALL_COUNT; i++) {
-            Ball* b = balls[i];
-            b->x += b->vx;
-            b->y += b->vy;
-            // 碰牆反彈 & 修正邊界
-            if (b->x <= 0) {
-                b->x = 0;
-                b->vx = abs(b->vx);  // 保證向右
-            } else if (b->x >= 320 - 28) {
-                b->x = 320 - 28;
-                b->vx = -abs(b->vx); // 保證向左
-            }
-
-            if (b->y <= 0) {
-                b->y = 0;
-                b->vy = abs(b->vy);  // 保證向下
-            } else if (b->y >= 240 - 28) {
-                b->y = 240 - 28;
-                b->vy = -abs(b->vy); // 保證向上
-            }
-        }
-
-        // 球與球之間碰撞
-        for (int i = 0; i < BALL_COUNT; i++) {
-            for (int j = i + 1; j < BALL_COUNT; j++) {
-                if (abs(balls[i]->x - balls[j]->x) < 28 &&
-                    abs(balls[i]->y - balls[j]->y) < 28) {
-
-                    balls[i]->vx = -balls[i]->vx;
-                    balls[i]->vy = -balls[i]->vy;
-                    balls[j]->vx = -balls[j]->vx;
-                    balls[j]->vy = -balls[j]->vy;
-
-                    // 確保反彈後速度不為 0
-                    if (abs(balls[i]->vx) < MIN_SPEED) balls[i]->vx = (rand() % 2) ? MIN_SPEED : -MIN_SPEED;
-                    if (abs(balls[i]->vy) < MIN_SPEED) balls[i]->vy = (rand() % 2) ? MIN_SPEED : -MIN_SPEED;
-                    if (abs(balls[j]->vx) < MIN_SPEED) balls[j]->vx = (rand() % 2) ? MIN_SPEED : -MIN_SPEED;
-                    if (abs(balls[j]->vy) < MIN_SPEED) balls[j]->vy = (rand() % 2) ? MIN_SPEED : -MIN_SPEED;
-                }
-            }
-        }
-
-        // 畫面更新
-        for (int i = 0; i < BALL_COUNT; i++) {
-            app_draw_ball_diff_update(prev_x[i], prev_y[i], balls[i]->x, balls[i]->y);
-            prev_x[i] = balls[i]->x;
-            prev_y[i] = balls[i]->y;
-        }
-    }
-
-//    if (now - debug_timer >= 1000) {
-//        debug_timer = now;
-//        printf("Ball1 (%d, %d) vx=%d vy=%d | Ball3 (%d, %d) vx=%d vy=%d| Ball2 (%d, %d) vx=%d vy=%d| Ball4 (%d, %d) vx=%d vy=%d\n" ,
-//               ball1.x, ball1.y, ball1.vx, ball1.vy,
-//               ball2.x, ball2.y, ball2.vx, ball2.vy,
-//               ball3.x, ball3.y, ball3.vx, ball3.vy,
-//               ball4.x, ball4.y, ball4.vx, ball4.vy);
-//    }
+    MPU6050_Process();
+    app_button_process();
+    
+    app_game_process();
+    app_ili9341_update();
 }
 
+void decoder_callback(const char* cmd, const char* arg1, const char* arg2)
+{
+    if (strcmp(cmd, "@UART") == 0) {
+        printf("@UART,ok\r\n");
+    }
+}
+
+void HAL_UART_CommandHandler(const char* cmd)
+{
+    decoder_input(cmd);
+}
+
+void MPU6050_DataCallback(int16_t *data)
+{
+
+}
+
+void app_button_event_handler(hal_button_num_t num, app_button_event_t event, uint32_t time_ms)
+{
+    if (game_status == GAME_IDLE)
+        game_status = GAME_START;
+    
+    if (num == BUTTON_1) {
+        if (event == BUTTON_LOW || event == BUTTON_PRESSING) {
+            game_board.dx = 10;
+        }
+        else {
+            game_board.dx = 0;
+        }
+    }
+    
+    if (num == BUTTON_2) {
+        if (event == BUTTON_LOW || event == BUTTON_PRESSING) {
+            game_board.dx = -10;
+        }
+        else {
+            game_board.dx = 0;
+        }
+    }
+}

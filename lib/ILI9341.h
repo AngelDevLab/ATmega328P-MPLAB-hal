@@ -51,6 +51,7 @@ void ILI9341_Init(void);
 void ILI9341_SetRotation(uint8_t rotation);
 void ILI9341_SetAddress(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 
+void ILI9341_DrawFilledRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void ILI9341_FillScreen(uint16_t color);
 void ILI9341_DrawImage_At_Scaled_Fast(const uint8_t* image,
                                       uint16_t img_width,

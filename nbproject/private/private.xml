@@ -3,7 +3,11 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
+            <file>file:/D:/AVR/AVR_HAL_EXAMPLE.X/lib/app_button.h</file>
+            <file>file:/D:/AVR/AVR_HAL_EXAMPLE.X/lib/hal_button.h</file>
+            <file>file:/D:/AVR/AVR_HAL_EXAMPLE.X/lib/app.c</file>
             <file>file:/D:/AVR/AVR_HAL_EXAMPLE.X/main.c</file>
+            <file>file:/D:/AVR/AVR_HAL_EXAMPLE.X/lib/app.h</file>
         </group>
     </open-files>
 </project-private>

@@ -224,6 +224,29 @@ void ILI9341_SetAddress(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 	ILI9341_WriteCommand(0x2C);
 }
 
+void ILI9341_DrawFilledRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
+{
+    ILI9341_SetAddress(x, y, x + w - 1, y + h - 1);
+
+    uint32_t total_pixels = w * h;
+    uint8_t buffer[400];
+    uint8_t hi = color >> 8;
+    uint8_t lo = color & 0xFF;
+
+    for (int i = 0; i < sizeof(buffer); i += 2) {
+        buffer[i] = hi;
+        buffer[i + 1] = lo;
+    }
+
+    DC_HIGH();
+    while (total_pixels > 0) {
+        uint16_t batch = (total_pixels > 200) ? 200 : total_pixels;
+        HAL_SPI_Transmit(buffer, batch * 2);
+        total_pixels -= batch;
+    }
+}
+
+
 
 
 void ILI9341_FillScreen(uint16_t color)

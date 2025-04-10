@@ -215,8 +215,3 @@ void app_button_process(void)
         }
     }
 }
-
-__attribute__((weak)) void app_button_event_handler(hal_button_num_t num, app_button_event_t event, uint32_t time_ms)
-{
-    
-}

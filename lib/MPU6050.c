@@ -28,7 +28,6 @@ void MPU6050_Process(void)
         data_buf[MPU6050_GYRO_Y]  = MPU6050_ReadWord(MPU6050_REG_GYRO_Y);
         data_buf[MPU6050_GYRO_Z]  = MPU6050_ReadWord(MPU6050_REG_GYRO_Z);
         data_buf[MPU6050_TEMP]    = MPU6050_ReadWord(MPU6050_REG_TEMP);
-
         MPU6050_DataCallback(data_buf);
     }
 }
@@ -36,9 +35,4 @@ void MPU6050_Process(void)
 void MPU6050_SetUpdateInterval(uint32_t data)
 {
     update_interval_ms = data;
-}
-
-__attribute__((weak)) void MPU6050_DataCallback(int16_t *data)
-{
-    
 }

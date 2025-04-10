@@ -109,7 +109,3 @@ void HAL_UART_Process(void)
         command_ready = 0;
     }
 }
-
-__attribute__((weak)) void HAL_UART_CommandHandler(const char* cmd) {
-    
-}
